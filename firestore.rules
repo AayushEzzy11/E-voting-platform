@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read candidates
+    match /candidates/{candidateId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+    
+    // Allow authenticated users to vote (once per user)
+    match /votes/{voteId} {
+      allow read: if request.auth != null && hasAdminRole();
+      allow create: if request.auth != null;
+      allow update, delete: if false; // Votes cannot be modified
+    }
+    
+    // User profiles
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Admin collection for roles
+    match /admins/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && hasAdminRole();
+    }
+    
+    // Helper functions
+    function hasAdminRole() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+  }
+}
